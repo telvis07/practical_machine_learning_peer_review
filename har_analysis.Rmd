@@ -1,11 +1,12 @@
 ---
-title: 'Practical Machine Learning: Prediction of exercise type using body sensor data'
+title: 'Practical Machine Learning: Prediction of exercise type using body sensor
+  data'
 author: "Telvis Calhoun"
 date: "March 17, 2016"
 output:
-  pdf_document: default
   html_document:
     keep_md: yes
+  pdf_document: default
 ---
 
 ## Executive Summary
@@ -13,16 +14,195 @@ output:
 TODO:
 
 ## Exploratory Analysis
+First, lets load libraries and datasets used in the analysis.
 
-TODO
+```{r, message=FALSE}
+library(dplyr)
+library(randomForest)
+library(caret)
+library(rpart)
+library(reshape2)
+data("mtcars")
+```
+
+
+First we remove columns that have all NAs. Next we use [rfImpute](http://www.inside-r.org/packages/cran/randomforest/docs/rfImpute) to fill in NA values.
+
+```{r echo=FALSE,cache=TRUE}
+training <- readRDS("data/pml_training_csv.rds")
+
+# data cols
+allcols <- names(training)
+train_measure_cols <- allcols[grep("belt|arm|dumbbell",allcols)]
+train_label_cols <- allcols[-grep("belt|arm|dumbbell",allcols)]
+
+# get only the columns with sensor data
+df <- subset(training, select=train_measure_cols)
+
+# find columns where all the sensor data is null.
+all_null_cols <- train_measure_cols[apply(df, 2, function(x) sum(is.na(x)) == length(x))]
+train_measure_cols_not_null <- setdiff(train_measure_cols, all_null_cols)
+
+# get only measurement columns with non-null values
+df <- subset(training, select=train_measure_cols_not_null)
+
+#
+df$classe <- as.factor(training$classe)
+
+# summary
+total_variables_in_training_set <- length(names(training))
+total_variables_with_belt_arm_dumbell_data <- length(train_measure_cols)
+total_variables_with_nonnull_belt_arm_dumbell_data <- length(train_measure_cols_not_null)
+total_rows_with_all_data <- sum(apply(df, 1, function(x) sum(is.na(x)) == 0))
+
+# [1] "Number of Variables in Training Data: 160"
+# [1] "Number of Belt, Arm, Dumbell Sensor Variables: 152"
+# [1] "Number of Belt, Arm, Dumbell Variables with non-NA values: 146"
+# [1] "Number of outcome variables (classe): 1"
+# [1] "Number of rows where a variables are non-NA 217"
+library(knitr)
+df <- data.frame(value=c(total_variables_in_training_set, 
+                          total_variables_with_belt_arm_dumbell_data, 
+                          total_variables_with_nonnull_belt_arm_dumbell_data,
+                          1,
+                          total_rows_with_all_data))
+
+rownames(df) <- c("total_variables_in_training_set", 
+                  "total_variables_with_belt_arm_dumbell_data", 
+                  "total_variables_with_nonnull_belt_arm_dumbell_data",
+                  "num outcome variables",
+                  "total_rows_with_all_data")
+
+kable(df, row.names=TRUE)
+```
+
+## Feature Selection
+We calculate feature importance the [varImp function](http://www.inside-r.org/packages/cran/randomforest/docs/importance) provided by the randomForest package.
+
+```{r echo=FALSE,cache=TRUE}
+set.seed(33833)
+
+modFit <- readRDS("data/rf_fit_variable_importance.rds")
+
+# find most important features
+vi <- varImp(modFit, scale=FALSE)$importance
+vi <- data.frame(varname=row.names(vi), Overall=vi$Overall)
+vi <- vi[order(vi$Overall, decreasing = TRUE),]
+rf_important_varnames <- vi[vi$Overall > 1,]$varname
+
+# plot the top features
+varImpPlot(modFit$finalModel, 
+           scale=FALSE, 
+           n.var=10,
+           main=sprintf("Top 10 of %s RF Variables Ranked by Gini", length(rf_important_varnames)))
+```
 
 ## Model Selection
 
-TODO
+### Random Forest with all Predictors
 
-## Prediction Results
+Random Forest model with 100 trees. We tried models with all 156 features and 36 features returned found in feature selection. We split the training in data in to 75% training and 25% testing.
 
-TODO:
+```{r echo=TRUE,cache=TRUE}
+set.seed(1234)
+  
+# read datums
+modFit <- readRDS("data/rf_fit_all_features.rds")
+df_imputed <- readRDS("data/rf_imputed_training_df.rds")
+
+# split
+inTrain = createDataPartition(df_imputed$classe, p = 3/4)[[1]]
+training = df_imputed[ inTrain,]
+testing = df_imputed[-inTrain,] 
+```
+
+```{r echo=FALSE,cache=TRUE}
+set.seed(1234)
+
+# testing
+prediction_rf <- predict(modFit, testing)
+confuse <- confusionMatrix(prediction_rf, testing$classe)
+confuse.percent <- apply(confuse$table, 1, function(x) x/sum(x))
+confuse.melt <- melt(confuse.percent)
+confuse.df <- as.data.frame(confuse.melt)
+
+ggplot(confuse.df, aes(x=Reference, y=Prediction, fill=value)) +
+  geom_tile(aes(fill=value)) +
+  geom_text(aes(label = round(value, 3))) +
+  scale_fill_gradient(low="white",high="red") +
+  ggtitle("Normalized Confusion Matrix for \n Random forest with 156 predictors") +
+  xlab("Actual Class") +
+  ylab("Predicted Class") 
+```
+
+TODO: show accuracy
+
+### Random Forest with Feature Selection
+Now here's the data for the reduced feature set.
+
+```{r echo=FALSE,cache=TRUE}
+set.seed(1234)
+
+# read datums
+vi <- readRDS("data/rf_variable_importance_df.rds")
+modFit_vi <- readRDS("data/rf_fit_36_features.rds")
+df_imputed <- readRDS("data/rf_imputed_training_df.rds")
+gini_threshold = 1
+
+# modfit with most important features  
+rf_important_varnames <- vi[vi$Overall > gini_threshold,]$varname
+reduced_training <- subset(training, select=c(as.vector(rf_important_varnames), "classe"))
+reduced_testing <- subset(testing, select=c(as.vector(rf_important_varnames), "classe"))
+
+# testing
+prediction_rf_vi <- predict(modFit_vi, reduced_testing)
+confuse <- confusionMatrix(prediction_rf_vi, reduced_testing$classe)
+confuse.percent <- apply(confuse$table, 1, function(x) x/sum(x))
+confuse.melt <- melt(confuse.percent)
+confuse.df <- as.data.frame(confuse.melt)
+
+ggplot(confuse.df, aes(x=Reference, y=Prediction, fill=value)) +
+  geom_tile(aes(fill=value)) +
+  geom_text(aes(label = round(value, 3))) +
+  scale_fill_gradient(low="white",high="red") +
+  ggtitle("Normalized Confusion Matrix for \n Random forest with 34 predictors") +
+  xlab("Actual Class") +
+  ylab("Predicted Class") 
+```
+
+## Prediction with Test Data
+
+The test data contains several columns with missing data. We use the cleaned data to impute the missing values using [na.roughfix](http://www.inside-r.org/packages/cran/randomforest/docs/na.roughfix). 
+
+TODO: Put stats here about the missing data in pml-testing.
+
+```{r echo=FALSE,cache=TRUE}
+# summary
+total_variables_in_training_set <- length(names(training))
+total_variables_with_belt_arm_dumbell_data <- length(train_measure_cols)
+total_variables_with_nonnull_belt_arm_dumbell_data <- length(train_measure_cols_not_null)
+total_rows_with_all_data <- sum(apply(df, 1, function(x) sum(is.na(x)) == 0))
+
+# [1] "Number of Variables in Training Data: 160"
+# [1] "Number of Belt, Arm, Dumbell Sensor Variables: 152"
+# [1] "Number of Belt, Arm, Dumbell Variables with non-NA values: 146"
+# [1] "Number of outcome variables (classe): 1"
+# [1] "Number of rows where a variables are non-NA 217"
+library(knitr)
+df <- data.frame(value=c(total_variables_in_training_set, 
+                          total_variables_with_belt_arm_dumbell_data, 
+                          total_variables_with_nonnull_belt_arm_dumbell_data,
+                          1,
+                          total_rows_with_all_data))
+
+rownames(df) <- c("total_variables_in_training_set", 
+                  "total_variables_with_belt_arm_dumbell_data", 
+                  "total_variables_with_nonnull_belt_arm_dumbell_data",
+                  "num outcome variables",
+                  "total_rows_with_all_data")
+
+kable(df, row.names=TRUE)
+```
 
 ## Conclusion
 

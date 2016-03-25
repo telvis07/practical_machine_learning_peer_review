@@ -53,10 +53,12 @@ load_training_datums <- function() {
   total_variables_in_training_set <- length(names(training))
   total_variables_with_belt_arm_dumbell_data <- length(train_measure_cols)
   total_variables_with_nonnull_belt_arm_dumbell_data <- length(train_measure_cols_not_null)
+  total_rows_with_all_data <- sum(apply(df, 1, function(x) sum(is.na(x)) == 0))
   print(sprintf("Number of Variables in Training Data: %s", total_variables_in_training_set))
   print(sprintf("Number of Belt, Arm, Dumbell Sensor Variables: %s", total_variables_with_belt_arm_dumbell_data))
   print(sprintf("Number of Belt, Arm, Dumbell Variables with non-NA values: %s", total_variables_with_nonnull_belt_arm_dumbell_data))
   print(sprintf("Number of outcome variables (classe): %s", 1))
+  print(sprintf("Number of rows where a variables are non-NA %s", total_rows_with_all_data ))
   
   # [1] "Number of Variables in Training Data: 160"
   # [1] "Number of Belt, Arm, Dumbell Sensor Variables: 152"
@@ -80,6 +82,8 @@ feature_selection_rf <- function(df) {
   set.seed(33833)
   print("Training Random Forest")
   modFit <- train(classe ~ ., data=df, method="rf", prox=TRUE)
+  print("Saving RDS")
+  saveRDS(modFit, "data/rf_fit_variable_importance.rds")
   
   # find most important features
   vi <- varImp(modFit, scale=FALSE)$importance
@@ -88,6 +92,7 @@ feature_selection_rf <- function(df) {
   
   # varnames with gini greater than 2.
   rf_important_varnames <- vi[vi$Overall > 1,]$varname
+  cnt <- length(rf_important_varnames)
   sprintf("Number of Random Forest Features with Gini > 2.0: %s", rf_important_varnames)
   print(head(vi, 20))
   
@@ -96,8 +101,8 @@ feature_selection_rf <- function(df) {
              scale=FALSE, 
              n.var=length(rf_important_varnames),
              main=sprintf("Top %s RF Variables Ranked by Gini", length(rf_important_varnames)))
-  print("Saving RDS")
-  saveRDS(vi, "data/rf_variable_importance_df.rds")
+  # print("Saving RDS")
+  # saveRDS(vi, "data/rf_variable_importance_df.rds")
   
   # return the most important features
   vi
@@ -125,7 +130,9 @@ feature_selection_rf <- function(df) {
 }
 
 
-rf_vi_stats <- function(vi) {
+rf_vi_stats <- function() {
+  vi <- readRDS("data/rf_variable_importance_df.rds")
+  
   # vi is a sorted variable importance matrix from varImp() 
   length(rf_important_varnames)
   sum(grepl('dumbbell', rf_important_varnames))
@@ -270,52 +277,6 @@ train_rf_top_features <- function(df_imputed, vi, gini_threshold=1) {
   modFit_vi
 }
 
-predict_validation_set <- function(){
-  pml_testing <- read.csv("data/pml-testing.csv", 
-                           na.strings = c("NA", "", "#DIV/0!"), 
-                           strip.white = TRUE, 
-                           stringsAsFactors = FALSE)
-  
-  # read datums
-  vi <- readRDS("data/rf_variable_importance_df.rds")
-  modFit_vi <- readRDS("data/rf_fit_36_features.rds")
-  df_imputed <- readRDS("data/rf_imputed_training_df.rds")
-  gini_threshold = 1
-   
-  # data cols
-  allcols <- names(pml_testing)
-  train_measure_cols <- allcols[grep("belt|arm|dumbbell",allcols)]
-  rf_important_varnames <- vi[vi$Overall > gini_threshold,]$varname
-  
-  # pml-testing data for 'most important' predictors
-  reduced_pml_testing <- subset(pml_testing, select=train_measure_cols)
-  reduced_pml_testing <- subset(pml_testing, select=c(as.vector(rf_important_varnames)))
-  reduced_pml_testing$problem_id <- pml_testing$problem_id
-  
-  
-  # training data for 'most important' predictors
-  reduced_df_imputed <- subset(df_imputed, select=c(as.vector(rf_important_varnames)))
-  reduced_df_imputed$classe <- df_imputed$classe
-
-
-  ###########################################
-  # replace NA's in the test data.
-  # simply replace with the median for the column
-  # For numeric variables, NAs are replaced with column medians
-  reduced_pml_testing$is_test_data <- TRUE
-  reduced_df_imputed$is_test_data <- FALSE
-  
-  # combine the data frames, remove 'classe' and 'problem_id' cols
-  combined_data <- rbind(subset(reduced_df_imputed, select=-c(classe)), subset(reduced_pml_testing, select=-c(problem_id)))
-  combined_rough <- na.roughfix(combined_data[,-length(combined_data)])
-  # get the roughfix data
-  combined_rough$is_test_data <- combined_data$is_test_data
-  pml_imputed <- filter(combined_rough, is_test_data==TRUE)
-  
-  # predict on imputed pml-testing data
-  predict(modFit_vi, pml_imputed)
-}
-
 
 plot_confusion_reduced <- function(){
   set.seed(1234)
@@ -347,17 +308,156 @@ plot_confusion_reduced <- function(){
   confuse.melt <- melt(confuse.percent)
   confuse.df <- as.data.frame(confuse.melt)
   
-  # ggplot(confuse.df) +
-  #   geom_tile(aes(x=Reference, y=Prediction, fill=value)) +
-  #   scale_fill_gradient(low="grey",high="red")
-  split_interval <- function(v, n) seq(from=v[1], to=v[2], length.out=n)
   ggplot(confuse.df, aes(x=Reference, y=Prediction, fill=value)) +
     geom_tile(aes(fill=value)) +
     geom_text(aes(label = round(value, 3))) +
     scale_fill_gradient(low="white",high="red") +
-    ggtitle("Normalized Confusion Matrix for \n 34 predictors") +
+    ggtitle("Normalized Confusion Matrix for \n Random forest with 34 predictors") +
     xlab("Actual Class") +
     ylab("Predicted Class") 
+}
+
+
+plot_confusion_all <- function(){
+  set.seed(1234)
+  
+  # read datums
+  modFit <- readRDS("data/rf_fit_all_features.rds")
+  df_imputed <- readRDS("data/rf_imputed_training_df.rds")
+
+  # split
+  inTrain = createDataPartition(df_imputed$classe, p = 3/4)[[1]]
+  training = df_imputed[ inTrain,]
+  testing = df_imputed[-inTrain,] 
+  
+  
+  # testing
+  prediction_rf <- predict(modFit, testing)
+  print("Predictions RF with top features: testing")
+  confuse <- confusionMatrix(prediction_rf, testing$classe)
+  confuse.percent <- apply(confuse$table, 1, function(x) x/sum(x))
+  confuse.melt <- melt(confuse.percent)
+  confuse.df <- as.data.frame(confuse.melt)
+  
+  ggplot(confuse.df, aes(x=Reference, y=Prediction, fill=value)) +
+    geom_tile(aes(fill=value)) +
+    geom_text(aes(label = round(value, 3))) +
+    scale_fill_gradient(low="white",high="red") +
+    ggtitle("Normalized Confusion Matrix for \n Random forest with 156 predictors") +
+    xlab("Actual Class") +
+    ylab("Predicted Class") 
+}
+
+
+predict_validation_set <- function(){
+  pml_testing <- read.csv("data/pml-testing.csv", 
+                          na.strings = c("NA", "", "#DIV/0!"), 
+                          strip.white = TRUE, 
+                          stringsAsFactors = FALSE)
+  
+  # read datums
+  vi <- readRDS("data/rf_variable_importance_df.rds")
+  modFit_vi <- readRDS("data/rf_fit_36_features.rds")
+  df_imputed <- readRDS("data/rf_imputed_training_df.rds")
+  gini_threshold = 1
+  
+  # data cols
+  allcols <- names(pml_testing)
+  train_measure_cols <- allcols[grep("belt|arm|dumbbell",allcols)]
+  rf_important_varnames <- vi[vi$Overall > gini_threshold,]$varname
+  
+  # pml-testing data for 'most important' predictors
+  reduced_pml_testing <- subset(pml_testing, select=train_measure_cols)
+  reduced_pml_testing <- subset(pml_testing, select=c(as.vector(rf_important_varnames)))
+  reduced_pml_testing$problem_id <- pml_testing$problem_id
+  
+  
+  # training data for 'most important' predictors
+  reduced_df_imputed <- subset(df_imputed, select=c(as.vector(rf_important_varnames)))
+  reduced_df_imputed$classe <- df_imputed$classe
+  
+  
+  ###########################################
+  # replace NA's in the test data.
+  # simply replace with the median for the column
+  # For numeric variables, NAs are replaced with column medians
+  reduced_pml_testing$is_test_data <- TRUE
+  reduced_df_imputed$is_test_data <- FALSE
+  
+  # combine the data frames, remove 'classe' and 'problem_id' cols
+  combined_data <- rbind(subset(reduced_df_imputed, select=-c(classe)), subset(reduced_pml_testing, select=-c(problem_id)))
+  combined_rough <- na.roughfix(combined_data[,-length(combined_data)])
+  # get the roughfix data
+  combined_rough$is_test_data <- combined_data$is_test_data
+  pml_imputed <- filter(combined_rough, is_test_data==TRUE)
+  
+  # predict on imputed pml-testing data
+  predict(modFit_vi, pml_imputed)
+}
+
+plot_feature_importance <- function() {
+    set.seed(33833)
+
+    modFit <- readRDS("data/rf_fit_variable_importance.rds")
+    
+    # plot the top features
+    varImpPlot(modFit$finalModel, 
+               scale=FALSE, 
+               n.var=length(rf_important_varnames),
+               main=sprintf("Top %s RF Variables Ranked by Gini", length(rf_important_varnames)))
+}
+
+data_summary_stats <- function() {
+  training <- readRDS("data/pml_training_csv.rds")
+  
+  # data cols
+  allcols <- names(training)
+  train_measure_cols <- allcols[grep("belt|arm|dumbbell",allcols)]
+  train_label_cols <- allcols[-grep("belt|arm|dumbbell",allcols)]
+  
+  # get only the columns with sensor data
+  df <- subset(training, select=train_measure_cols)
+  
+  # find columns where all the sensor data is null.
+  all_null_cols <- train_measure_cols[apply(df, 2, function(x) sum(is.na(x)) == length(x))]
+  train_measure_cols_not_null <- setdiff(train_measure_cols, all_null_cols)
+  
+  # get only measurement columns with non-null values
+  df <- subset(training, select=train_measure_cols_not_null)
+  
+  #
+  df$classe <- as.factor(training$classe)
+  
+  # summary
+  total_variables_in_training_set <- length(names(training))
+  total_variables_with_belt_arm_dumbell_data <- length(train_measure_cols)
+  total_variables_with_nonnull_belt_arm_dumbell_data <- length(train_measure_cols_not_null)
+  total_rows_with_all_data <- sum(apply(df, 1, function(x) sum(is.na(x)) == 0))
+  print(sprintf("Number of Variables in Training Data: %s", total_variables_in_training_set))
+  print(sprintf("Number of Belt, Arm, Dumbell Sensor Variables: %s", total_variables_with_belt_arm_dumbell_data))
+  print(sprintf("Number of Belt, Arm, Dumbell Variables with non-NA values: %s", total_variables_with_nonnull_belt_arm_dumbell_data))
+  print(sprintf("Number of outcome variables (classe): %s", 1))
+  print(sprintf("Number of rows where a variables are non-NA: %s", total_rows_with_all_data ))
+  
+  # [1] "Number of Variables in Training Data: 160"
+  # [1] "Number of Belt, Arm, Dumbell Sensor Variables: 152"
+  # [1] "Number of Belt, Arm, Dumbell Variables with non-NA values: 146"
+  # [1] "Number of outcome variables (classe): 1"
+  # [1] "Number of rows where a variables are non-NA 217"
+  library(knitr)
+  df <- data.frame(total_variables_in_training_set=total_variables_in_training_set, 
+                   total_variables_with_belt_arm_dumbell_data=total_variables_with_belt_arm_dumbell_data, 
+                   total_variables_with_nonnull_belt_arm_dumbell_data= total_variables_with_nonnull_belt_arm_dumbell_data,
+                   num_outcome_variables =1,
+                   total_rows_with_all_data=total_rows_with_all_data)
+  rnames <- c("total_variables_in_training_set", 
+              "total_variables_with_belt_arm_dumbell_data", 
+              "total_variables_with_nonnull_belt_arm_dumbell_data",
+              "num outcome variables",
+              "total_rows_with_all_data")
+
+  kable(df, format = "html")
+  NA
 }
 
 
