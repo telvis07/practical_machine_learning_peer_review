@@ -1,4 +1,4 @@
-# Practical Machine Learning: Prediction of exercise type using body sensor data
+# Prediction of exercise quality using body sensor data
 Telvis Calhoun  
 March 17, 2016  
 
@@ -15,11 +15,9 @@ library(knitr)
 library(dplyr)
 library(randomForest)
 library(caret)
-library(rpart)
 library(reshape2)
 library(grid)
 library(gridExtra)
-data("mtcars")
 ```
 
 

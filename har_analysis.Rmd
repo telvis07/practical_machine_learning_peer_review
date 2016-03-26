@@ -1,5 +1,5 @@
 ---
-title: 'Practical Machine Learning: Prediction of exercise type using body sensor
+title: 'Prediction of exercise quality using body sensor
   data'
 author: "Telvis Calhoun"
 date: "March 17, 2016"
@@ -21,11 +21,9 @@ library(knitr)
 library(dplyr)
 library(randomForest)
 library(caret)
-library(rpart)
 library(reshape2)
 library(grid)
 library(gridExtra)
-data("mtcars")
 ```
 
 
@@ -177,11 +175,6 @@ total_rows_with_NA <- sum(apply(pml_testing, 1, function(x) any(is.na(x))))
 total_columns <- ncol(pml_testing)
 total_rows <- nrow(pml_testing)
 
-# [1] "Number of Variables in Training Data: 160"
-# [1] "Number of Belt, Arm, Dumbell Sensor Variables: 152"
-# [1] "Number of Belt, Arm, Dumbell Variables with non-NA values: 146"
-# [1] "Number of outcome variables (classe): 1"
-# [1] "Number of rows where a variables are non-NA 217"
 df <- data.frame(value=c(total_columns,
                         total_columns_with_all_na_data,
                          total_rows,
