@@ -125,12 +125,12 @@ $(document).ready(function () {
 <p>In a nutshell, here’s a summary of the analysis performed this paper.</p>
 <ol style="list-style-type: decimal">
 <li>Clean the <em>training</em> data by removing <code>6</code> sensor data columns with all missing (NA) data.</li>
-<li>Perform feature selection using a random forest to find the <em>36</em> most important features.</li>
-<li>Impute missing values for <em>36</em> features using a random forest impute function.</li>
-<li>Split the <em>training</em> data into a 75%/25% train/test split. Then we build several random forest models using the train split and measure accuracy using the test split. The best model has <code>95.7%</code> accuracy with <em>36</em> features.<br />
+<li>Perform feature selection using a random forest to find the most important features.</li>
+<li>Impute missing values in the cleaned <em>training</em> data using a random forest impute function.</li>
+<li>Split the <em>training</em> data into a 75%/25% train/test split. Then we build several random forest models using the train split and measure accuracy using the test split. The best model has <code>95.8%</code> accuracy with <em>36</em> features.<br />
 </li>
 <li>Clean the <em>testing</em> data by imputing the missing (NA) data using column medians from the training data.</li>
-<li>Predict the <em>classe</em> for the 20 test samples using the best random forest model with <em>36</em> features.</li>
+<li>Predict the <em>classe</em> for the 20 test samples using the best random forest model.</li>
 </ol>
 </div>
 </div>
@@ -175,7 +175,7 @@ $(document).ready(function () {
 <p>First, we split the training data into 75% training set and 25% testing set. Then we build several random forest models using train split and measure accuracy using the test split.</p>
 <div id="impute-pml-training-set" class="section level3">
 <h3>Impute PML training set</h3>
-<p>Before we can build a random forest classifier, we must first <em>impute</em> the missing values in the training set. I discovered this when I tried to perform prediction on 100 test samples but <code>predict()</code> only return 40 predictions. This was due to the <code>RandomForest</code> skipping samples with missing values - <a href="https://github.com/cran/randomForest/blob/R-3.0.3/R/predict.randomForest.R#L55-L61">see this link in the source</a>.</p>
+<p>Before we can build a random forest classifier, we must first <em>impute</em> the missing values in the training set. I discovered this when I tried to perform prediction on 100 test samples but <code>predict()</code> only returned 40 predictions. This was due to the <code>RandomForest</code> skipping samples with missing values - <a href="https://github.com/cran/randomForest/blob/R-3.0.3/R/predict.randomForest.R#L55-L61">see this link in the predict.randomForest.R source</a>.</p>
 </div>
 <div id="model-with-all-features" class="section level3">
 <h3>Model with All Features</h3>
@@ -190,7 +190,7 @@ $(document).ready(function () {
 </div>
 <div id="prediction-with-test-data" class="section level2">
 <h2>Prediction with Test Data</h2>
-<p>The testing dataset contains several columns with missing data. We summarize our findings in <code>Table 2</code>. We use the imputed training data from section “Impute PML training set” to impute the missing (NA) values using <a href="http://www.inside-r.org/packages/cran/randomforest/docs/na.roughfix">the na.roughfix R function</a>. This function replaces missing (NA) values with column medians.</p>
+<p>The testing dataset contains several columns with missing data. We summarize our findings in <code>Table 2</code>. We use the imputed training data from section “Impute PML training set” to replace the missing (NA) values using <a href="http://www.inside-r.org/packages/cran/randomforest/docs/na.roughfix">the na.roughfix R function</a>. This function replaces missing (NA) values with column medians.</p>
 <table>
 <caption>Table 2: pml_testing.csv Summary</caption>
 <thead>
@@ -218,11 +218,11 @@ $(document).ready(function () {
 </tr>
 </tbody>
 </table>
-<p>Once we clean the data, we select the 36 columns corresponding to the variables found during feature selection and perform our predictions. See <code>Appendix 1</code> for code and predictions.</p>
+<p>Once we cleaned the data, we select the 36 columns corresponding to the variables found during feature selection and perform our predictions. See <code>Appendix 1</code> for code and predictions.</p>
 </div>
 <div id="conclusion" class="section level2">
 <h2>Conclusion</h2>
-<p>In this project, we use <code>R</code> to build a classifier using the <code>Qualitative Activity Recognition</code> sensor data. We performed data cleaning on the <em>testing</em> and <em>training</em> data set by replacing missing (NA) values. Our final random forest model has <code>95.7%</code> accuracy using only <em>36</em> of <em>152</em> features. Finally, we predict the <em>classe</em> for the 20 test samples using the Random Forest model with <em>36</em> features.</p>
+<p>In this project, we use <code>R</code> to build a classifier using the <code>Qualitative Activity Recognition</code> sensor data. We performed data cleaning on the <em>testing</em> and <em>training</em> data set by replacing missing (NA) values. Our final random forest model has <code>95.7%</code> accuracy using only <em>36</em> of <em>152</em> features. Finally, we predict the <em>classe</em> for the 20 test samples using this model.</p>
 </div>
 <div id="appendix" class="section level1">
 <h1>Appendix</h1>
