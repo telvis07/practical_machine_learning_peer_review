@@ -27,14 +27,12 @@ In a nutshell, here's a summary of the analysis performed this paper.
 First, we explore the *training* data to look for missing (NA) sensor measurements. We assume that the values: `"NA"`, `""` (empty string) and `"#DIV/0!"` represent missing sensor measurements. `Table 1` summarizes our findings. We remove the 6 sensor data columns that have all missing (NA) values. We also found that 19405 samples have at least 1 missing measurement. During model selection, we impute these missing measurements prior to building a classifier.
 
 
-Table: Table 1: pml_training.csv Summary
-
-                                                    value
--------------------------------------------------  ------
-total_variables_containing_measurement_data           152
-total_variables_all_missing                             6
-total_rows                                          19622
-total_rows_with_at_least_one_missing_measurement    19405
+|                                                 | value|
+|:------------------------------------------------|-----:|
+|total_variables_containing_measurement_data      |   152|
+|total_variables_all_missing                      |     6|
+|total_rows                                       | 19622|
+|total_rows_with_at_least_one_missing_measurement | 19405|
 
 ## Feature Selection
 We calculate feature importance using the [varImp function provided by the randomForest R package](http://www.inside-r.org/packages/cran/randomforest/docs/importance). First, we build a random forest model on the entire *training* set. Then we extract the variable importance data from the model. `Figure 1` shows the top 15 features sorted by their Gini values. The Gini value measure impurity of splits for a variable `m` over all trees in the forest.  
@@ -65,14 +63,12 @@ Next, we built a random forest model with 100 trees and top variables found duri
 The testing dataset contains several columns with missing data. We summarize our findings in `Table 2`. We use the imputed training data from section "Impute PML training set" to replace the missing (NA) values using [the na.roughfix R function](http://www.inside-r.org/packages/cran/randomforest/docs/na.roughfix). This function replaces missing (NA) values with column medians.
 
 
-Table: Table 2: pml_testing.csv Summary
-
-                                                    value
--------------------------------------------------  ------
-total_variables_containing_measurement_data           152
-total_variables_all_missing                           100
-total_rows                                             20
-total_rows_with_at_least_one_missing_measurement       20
+|                                                 | value|
+|:------------------------------------------------|-----:|
+|total_variables_containing_measurement_data      |   152|
+|total_variables_all_missing                      |   100|
+|total_rows                                       |    20|
+|total_rows_with_at_least_one_missing_measurement |    20|
 
 Once we cleaned the data, we select the 36 columns corresponding to the variables found during feature selection and perform our predictions. See `Appendix 1` for code and predictions.
 

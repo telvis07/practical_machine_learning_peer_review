@@ -78,7 +78,7 @@ rownames(df) <- c("total_variables_containing_measurement_data",
                   "total_rows",
                   "total_rows_with_at_least_one_missing_measurement")
 
-kable(df, row.names=TRUE, caption="Table 1: pml_training.csv Summary")
+kable(df, row.names=TRUE, format = "markdown", caption="Table 1: pml_training.csv Summary")
 ```
 
 ## Feature Selection
@@ -208,7 +208,7 @@ rownames(df) <- c("total_variables_containing_measurement_data",
                   "total_rows",
                   "total_rows_with_at_least_one_missing_measurement")
 
-kable(df, row.names=TRUE, caption="Table 2: pml_testing.csv Summary")
+kable(df, row.names=TRUE, format = "markdown", caption="Table 2: pml_testing.csv Summary")
 ```
 
 Once we cleaned the data, we select the `r rf_important_varnames_length` columns corresponding to the variables found during feature selection and perform our predictions. See `Appendix 1` for code and predictions.

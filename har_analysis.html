@@ -138,7 +138,6 @@ $(document).ready(function () {
 <h2>Data Cleaning</h2>
 <p>First, we explore the <em>training</em> data to look for missing (NA) sensor measurements. We assume that the values: <code>&quot;NA&quot;</code>, <code>&quot;&quot;</code> (empty string) and <code>&quot;#DIV/0!&quot;</code> represent missing sensor measurements. <code>Table 1</code> summarizes our findings. We remove the 6 sensor data columns that have all missing (NA) values. We also found that 19405 samples have at least 1 missing measurement. During model selection, we impute these missing measurements prior to building a classifier.</p>
 <table>
-<caption>Table 1: pml_training.csv Summary</caption>
 <thead>
 <tr class="header">
 <th align="left"></th>
@@ -192,7 +191,6 @@ $(document).ready(function () {
 <h2>Prediction with Test Data</h2>
 <p>The testing dataset contains several columns with missing data. We summarize our findings in <code>Table 2</code>. We use the imputed training data from section “Impute PML training set” to replace the missing (NA) values using <a href="http://www.inside-r.org/packages/cran/randomforest/docs/na.roughfix">the na.roughfix R function</a>. This function replaces missing (NA) values with column medians.</p>
 <table>
-<caption>Table 2: pml_testing.csv Summary</caption>
 <thead>
 <tr class="header">
 <th align="left"></th>
