@@ -142,6 +142,9 @@ predict(modFit_vi, pml_imputed)
 ## Levels: A B C D E
 ```
 
+## Appendix 2: Github Link to R Source Code
+
+https://github.com/telvis07/practical_machine_learning_peer_review
 
 # Citations
 

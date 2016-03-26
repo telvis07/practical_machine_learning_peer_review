@@ -273,6 +273,9 @@ pml_imputed <- filter(combined_rough, is_test_data==TRUE)
 predict(modFit_vi, pml_imputed)
 ```
 
+## Appendix 2: Github Link to R Source Code
+
+https://github.com/telvis07/practical_machine_learning_peer_review
 
 # Citations
 
