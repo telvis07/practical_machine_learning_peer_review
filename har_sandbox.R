@@ -350,10 +350,12 @@ plot_confusion_all <- function(){
 
 
 predict_validation_set <- function(){
-  pml_testing <- read.csv("data/pml-testing.csv", 
-                          na.strings = c("NA", "", "#DIV/0!"), 
-                          strip.white = TRUE, 
-                          stringsAsFactors = FALSE)
+  # pml_testing <- read.csv("data/pml-testing.csv", 
+  #                         na.strings = c("NA", "", "#DIV/0!"), 
+  #                         strip.white = TRUE, 
+  #                         stringsAsFactors = FALSE)
+  
+  pml_testing <- readRDS("data/pml_testing_csv.rds")
   
   # read datums
   vi <- readRDS("data/rf_variable_importance_df.rds")
