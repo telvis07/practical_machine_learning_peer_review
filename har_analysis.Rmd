@@ -13,7 +13,7 @@ output:
 
 TODO:
 
-## Exploratory Analysis
+## Data Preparation
 First, lets load libraries and datasets used in the analysis.
 
 ```{r, message=FALSE}
@@ -43,7 +43,7 @@ train_label_cols <- allcols[-grep("belt|arm|dumbbell",allcols)]
 df <- subset(training, select=train_measure_cols)
 
 # find columns where all the sensor data is null.
-all_null_cols <- train_measure_cols[apply(df, 2, function(x) sum(is.na(x)) == length(x))]
+all_null_cols <- train_measure_cols[apply(df, 2, function(x) all(is.na(x)))]
 train_measure_cols_not_null <- setdiff(train_measure_cols, all_null_cols)
 
 # get only measurement columns with non-null values
@@ -56,25 +56,17 @@ df$classe <- as.factor(training$classe)
 total_variables_in_training_set <- length(names(training))
 total_variables_with_belt_arm_dumbell_data <- length(train_measure_cols)
 total_variables_with_nonnull_belt_arm_dumbell_data <- length(train_measure_cols_not_null)
-total_rows_with_all_data <- sum(apply(df, 1, function(x) sum(is.na(x)) == 0))
+total_rows_with_na_data <- sum(apply(df, 1, function(x) any(is.na(x))))
 
-# [1] "Number of Variables in Training Data: 160"
-# [1] "Number of Belt, Arm, Dumbell Sensor Variables: 152"
-# [1] "Number of Belt, Arm, Dumbell Variables with non-NA values: 146"
-# [1] "Number of outcome variables (classe): 1"
-# [1] "Number of rows where a variables are non-NA 217"
-library(knitr)
-df <- data.frame(value=c(total_variables_in_training_set, 
-                          total_variables_with_belt_arm_dumbell_data, 
-                          total_variables_with_nonnull_belt_arm_dumbell_data,
-                          1,
-                          total_rows_with_all_data))
+df <- data.frame(value=c(total_variables_with_belt_arm_dumbell_data, 
+                          length(all_null_cols),
+                          nrow(training),
+                          total_rows_with_na_data))
 
-rownames(df) <- c("total_variables_in_training_set", 
-                  "total_variables_with_belt_arm_dumbell_data", 
-                  "total_variables_with_nonnull_belt_arm_dumbell_data",
-                  "num outcome variables",
-                  "total_rows_with_all_data")
+rownames(df) <- c("total_variables_with_belt_arm_dumbell_data", 
+                  "number_variables_all_missing",
+                  "total_rows",
+                  "total_rows_with_missing_data")
 
 kable(df, row.names=TRUE)
 ```
@@ -96,8 +88,8 @@ rf_important_varnames <- vi[vi$Overall > 1,]$varname
 # plot the top features
 varImpPlot(modFit$finalModel, 
            scale=FALSE, 
-           n.var=10,
-           main=sprintf("Top 10 of %s Variables with Gini > 1.0", length(rf_important_varnames)))
+           n.var=15,
+           main=sprintf("Random Forest Variable Importance Plot \nof Top 15 of %s Variables", length(rf_important_varnames)))
 ```
 
 ## Model Selection
@@ -120,7 +112,7 @@ testing = df_imputed[-inTrain,]
 
 The figure below show the confusion matrices for models built with all 156 predictors and the best 34 prediction with GINI greater than 1.0. The accuracy for model with all features is TODO. However the model with the best 36 features performs just as well.
 
-```{r echo=FALSE,cache=TRUE}
+```{r echo=FALSE,cache=TRUE,fig.align='center'}
 set.seed(1234)
 
 ### Random Forest with all features
@@ -180,8 +172,9 @@ TODO: Put stats here about the missing data in pml-testing.
 pml_testing <- readRDS("data/pml_testing_csv.rds")
 
 # summary
-total_columns_with_all_na_data <- sum(apply(pml_testing, 2, function(x) sum(is.na(x)) == 0))
-total_rows_with_NA <- sum(apply(pml_testing, 1, function(x) sum(is.na(x)) == 0))
+total_columns_with_all_na_data <- sum(apply(pml_testing, 2, function(x) all(is.na(x))))
+total_rows_with_NA <- sum(apply(pml_testing, 1, function(x) any(is.na(x))))
+total_columns <- ncol(pml_testing)
 total_rows <- nrow(pml_testing)
 
 # [1] "Number of Variables in Training Data: 160"
@@ -189,19 +182,17 @@ total_rows <- nrow(pml_testing)
 # [1] "Number of Belt, Arm, Dumbell Variables with non-NA values: 146"
 # [1] "Number of outcome variables (classe): 1"
 # [1] "Number of rows where a variables are non-NA 217"
-df <- data.frame(value=c(total_variables_in_training_set, 
-                          total_variables_with_belt_arm_dumbell_data, 
-                          total_variables_with_nonnull_belt_arm_dumbell_data,
-                          1,
-                          total_rows_with_all_data))
+df <- data.frame(value=c(total_columns,
+                        total_columns_with_all_na_data,
+                         total_rows,
+                          total_rows_with_NA))
 
-rownames(df) <- c("total_variables_in_training_set", 
-                  "total_variables_with_belt_arm_dumbell_data", 
-                  "total_variables_with_nonnull_belt_arm_dumbell_data",
-                  "num outcome variables",
-                  "total_rows_with_all_data")
+rownames(df) <- c("total_columns",
+                  "total_columns_with_all_missing_data", 
+                  "total_rows", 
+                  "total_rows_with_missing_data")
 
-kable(df, row.names=TRUE)
+kable(df, row.names=TRUE, caption="pml_testing_csv summary")
 ```
 
 ## Conclusion
@@ -210,7 +201,50 @@ TODO:
 
 # Appendix
 
-TODO: 
+## Predictions for pml_testing data
+
+```{r echo=TRUE,cache=TRUE}
+pml_testing <- readRDS("data/pml_testing_csv.rds")
+  
+# read datums
+vi <- readRDS("data/rf_variable_importance_df.rds")
+modFit_vi <- readRDS("data/rf_fit_36_features.rds")
+df_imputed <- readRDS("data/rf_imputed_training_df.rds")
+gini_threshold = 1
+
+# data cols
+allcols <- names(pml_testing)
+train_measure_cols <- allcols[grep("belt|arm|dumbbell",allcols)]
+rf_important_varnames <- vi[vi$Overall > gini_threshold,]$varname
+
+# pml-testing data for 'most important' predictors
+reduced_pml_testing <- subset(pml_testing, select=train_measure_cols)
+reduced_pml_testing <- subset(pml_testing, select=c(as.vector(rf_important_varnames)))
+reduced_pml_testing$problem_id <- pml_testing$problem_id
+
+
+# training data for 'most important' predictors
+reduced_df_imputed <- subset(df_imputed, select=c(as.vector(rf_important_varnames)))
+reduced_df_imputed$classe <- df_imputed$classe
+
+
+###########################################
+# replace NA's in the test data.
+# simply replace with the median for the column
+# For numeric variables, NAs are replaced with column medians
+reduced_pml_testing$is_test_data <- TRUE
+reduced_df_imputed$is_test_data <- FALSE
+
+# combine the data frames, remove 'classe' and 'problem_id' cols
+combined_data <- rbind(subset(reduced_df_imputed, select=-c(classe)), subset(reduced_pml_testing, select=-c(problem_id)))
+combined_rough <- na.roughfix(combined_data[,-length(combined_data)])
+# get the roughfix data
+combined_rough$is_test_data <- combined_data$is_test_data
+pml_imputed <- filter(combined_rough, is_test_data==TRUE)
+
+# predict on imputed pml-testing data
+predict(modFit_vi, pml_imputed)
+```
 
 
 # Citations
