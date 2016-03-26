@@ -1,4 +1,4 @@
-# Qualitative Activity Recognition of Weight Lifting Exercises data'
+# Qualitative Activity Recognition of Weight Lifting Exercises Data
 Telvis Calhoun  
 March 17, 2016  
 
@@ -13,11 +13,11 @@ In this project, we use `R` to build a classifier using the sensor data generous
 In a nutshell, here's a summary of the analysis performed this paper.
 
 1. Clean the *training* data by removing `6` sensor data columns with all missing (NA) data.
-2. Perform feature selection using a random forest to find the *36* most important features.
-3. Impute missing values for *36* features using a random forest impute function.
-4. Split the *training* data into a 75%/25% train/test split. Then we build several random forest models using the train split and measure accuracy using the test split. The best model has `95.7%` accuracy with *36* features.   
+2. Perform feature selection using a random forest to find the most important features.
+3. Impute missing values in the cleaned *training* data using a random forest impute function.
+4. Split the *training* data into a 75%/25% train/test split. Then we build several random forest models using the train split and measure accuracy using the test split. The best model has `95.8%` accuracy with *36* features.   
 5. Clean the *testing* data by imputing the missing (NA) data using column medians from the training data.
-6. Predict the *classe* for the 20 test samples using the best random forest model with *36* features.
+6. Predict the *classe* for the 20 test samples using the best random forest model.
 
 ## Data Cleaning
 
@@ -46,7 +46,7 @@ We calculate feature importance using the [varImp function provided by the rando
 First, we split the training data into 75% training set and 25% testing set. Then we build several random forest models using train split and measure accuracy using the test split.
 
 ### Impute PML training set
-Before we can build a random forest classifier, we must first *impute* the missing values in the training set. I discovered this when I tried to perform prediction on 100 test samples but `predict()` only return 40 predictions. This was due to the `RandomForest` skipping samples with missing values - [see this link in the source](https://github.com/cran/randomForest/blob/R-3.0.3/R/predict.randomForest.R#L55-L61).
+Before we can build a random forest classifier, we must first *impute* the missing values in the training set. I discovered this when I tried to perform prediction on 100 test samples but `predict()` only returned 40 predictions. This was due to the `RandomForest` skipping samples with missing values - [see this link in the predict.randomForest.R source](https://github.com/cran/randomForest/blob/R-3.0.3/R/predict.randomForest.R#L55-L61).
 
 
 
@@ -62,7 +62,7 @@ Next, we built a random forest model with 100 trees and top variables found duri
 
 ## Prediction with Test Data
 
-The testing dataset contains several columns with missing data. We summarize our findings in `Table 2`. We use the imputed training data from section "Impute PML training set" to impute the missing (NA) values using [the na.roughfix R function](http://www.inside-r.org/packages/cran/randomforest/docs/na.roughfix). This function replaces missing (NA) values with column medians.
+The testing dataset contains several columns with missing data. We summarize our findings in `Table 2`. We use the imputed training data from section "Impute PML training set" to replace the missing (NA) values using [the na.roughfix R function](http://www.inside-r.org/packages/cran/randomforest/docs/na.roughfix). This function replaces missing (NA) values with column medians.
 
 
 Table: Table 2: pml_testing.csv Summary
@@ -74,11 +74,11 @@ total_variables_all_missing                           100
 total_rows                                             20
 total_rows_with_at_least_one_missing_measurement       20
 
-Once we clean the data, we select the 36 columns corresponding to the variables found during feature selection and perform our predictions. See `Appendix 1` for code and predictions.
+Once we cleaned the data, we select the 36 columns corresponding to the variables found during feature selection and perform our predictions. See `Appendix 1` for code and predictions.
 
 ## Conclusion
 
-In this project, we use `R` to build a classifier using the `Qualitative Activity Recognition` sensor data. We performed data cleaning on the *testing* and *training* data set by replacing missing (NA) values. Our final random forest model has `95.7%` accuracy using only *36* of *152* features. Finally, we predict the *classe* for the 20 test samples using the Random Forest model with *36* features.
+In this project, we use `R` to build a classifier using the `Qualitative Activity Recognition` sensor data. We performed data cleaning on the *testing* and *training* data set by replacing missing (NA) values. Our final random forest model has `95.7%` accuracy using only *36* of *152* features. Finally, we predict the *classe* for the 20 test samples using this model.
 
 # Appendix
 
